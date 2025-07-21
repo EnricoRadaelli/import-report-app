@@ -2,11 +2,11 @@ import datetime as _dt
 from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
-
 import html
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from dateutil.relativedelta import relativedelta, MO
 
 # --------------------------------------------------------
@@ -49,6 +49,10 @@ CLOSE_FMT = "%b %d, %Y, %I:%M:%S %p"  # e.g. "Jul 14, 2025, 04:20:01 PM"
 # --------------------------------------------------------
 # UTILITY FUNCTIONS (largely unchanged from your script)
 # --------------------------------------------------------
+
+STYLE_CELL = 'style="border:1px solid #cccccc;padding:4px;text-align:left;"'
+STYLE_TABLE = 'style="border-collapse:collapse;border:1px solid #cccccc;"'
+
 
 def previous_week_window(reference_date=None):
     """Return Monday–Sunday dates of the *previous* week w.r.t reference_date."""
@@ -138,30 +142,47 @@ Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DP
 {links_md}
 """
 
+    # --- Gmail‑friendly HTML: inline CSS ---
     html_msg = f"""\
 <p>Ciao Luisa,</p>
 
-<p>di seguito gli import di questa settimana.<br>
+<p>di seguito gli import di questa settimana.<br/>
 Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 
-<table border="1" cellspacing="0" cellpadding="4">
-  <tr><th>Business Line</th><th>Volumi</th></tr>
-  <tr><td>Facility</td><td>{facility}</td></tr>
-  <tr><td>Individual</td><td>{individual}</td></tr>
-  <tr><td><strong>Totale complessivo</strong></td><td><strong>{tot_total}</strong></td></tr>
+<table {STYLE_TABLE}>
+  <tr>
+    <th {STYLE_CELL}>Business Line</th>
+    <th {STYLE_CELL}>Volumi</th>
+  </tr>
+  <tr>
+    <td {STYLE_CELL}>Facility</td><td {STYLE_CELL}>{facility}</td>
+  </tr>
+  <tr>
+    <td {STYLE_CELL}>Individual</td><td {STYLE_CELL}>{individual}</td>
+  </tr>
+  <tr>
+    <td {STYLE_CELL}><strong>Totale complessivo</strong></td>
+    <td {STYLE_CELL}><strong>{tot_total}</strong></td>
+  </tr>
 </table>
 
 <p><em>Il dato relativo alle Facility comprende anche le Cliniche GP, GIPO e DPP.</em></p>
 
 <p>Di seguito le lavorazioni suddivise per importer:</p>
 
-<table border="1" cellspacing="0" cellpadding="4">
-  <tr><th>Importer</th><th>Volumi</th></tr>
-  <tr><td>Alessia</td><td>{imp_counts['Alessia']}</td></tr>
-  <tr><td>Andrea</td><td>{imp_counts['Andrea']}</td></tr>
-  <tr><td>Enrico</td><td>{imp_counts['Enrico']}</td></tr>
-  <tr><td>Pedro</td><td>{imp_counts['Pedro']}</td></tr>
-  <tr><td><strong>Totale complessivo</strong></td><td><strong>{tot_total}</strong></td></tr>
+<table {STYLE_TABLE}>
+  <tr>
+    <th {STYLE_CELL}>Importer</th>
+    <th {STYLE_CELL}>Volumi</th>
+  </tr>
+  <tr><td {STYLE_CELL}>Alessia</td><td {STYLE_CELL}>{imp_counts['Alessia']}</td></tr>
+  <tr><td {STYLE_CELL}>Andrea</td><td {STYLE_CELL}>{imp_counts['Andrea']}</td></tr>
+  <tr><td {STYLE_CELL}>Enrico</td><td {STYLE_CELL}>{imp_counts['Enrico']}</td></tr>
+  <tr><td {STYLE_CELL}>Pedro</td><td {STYLE_CELL}>{imp_counts['Pedro']}</td></tr>
+  <tr>
+    <td {STYLE_CELL}><strong>Totale complessivo</strong></td>
+    <td {STYLE_CELL}><strong>{tot_total}</strong></td>
+  </tr>
 </table>
 
 <p>Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DPP) interessate:</p>
@@ -182,7 +203,6 @@ with st.expander("ℹ️ Istruzioni", expanded=False):
         "1. Scarica il CSV dal CRM come fai di solito.\n"
         "2. Caricalo qui sotto.\n"
         "3. Facoltativo: cambia la *data di riferimento* se vuoi calcolare su un'altra settimana.\n"
-        "   (La app considera sempre la settimana precedente a quella della data scelta.)\n"
         "4. Scarica l'Excel filtrato o copia il messaggio HTML pronto per Gmail."
     )
 
@@ -192,7 +212,7 @@ col1, col2 = st.columns(2)
 with col1:
     ref_date = st.date_input("Data di riferimento", value=_dt.date.today(), format="DD/MM/YYYY")
 with col2:
-    pass  # empty spacer or we could put future options
+    pass  # spacer per opzioni future
 
 if uploaded_file:
     # Read & process
@@ -209,60 +229,4 @@ if uploaded_file:
     individual = int(bl_counts.get("Individual", 0))
 
     # KPI Cards
-    kpi1, kpi2, kpi3 = st.columns(3)
-    kpi1.metric("Total Imports", f"{tot_imports}")
-    kpi2.metric("Facility", f"{facility}")
-    kpi3.metric("Individual", f"{individual}")
-
-    st.subheader("📑 Risultati filtrati")
-    st.dataframe(df_filtered, hide_index=True)
-
-    # Messages
-    plain_msg, html_msg = build_messages(df_filtered)
-
-    with st.expander("Messaggio plain/Markdown"):
-        st.text_area("", plain_msg, height=250)
-
-    with st.expander("Messaggio HTML per Gmail"):
-        st.text_area("", html_msg, height=300)
-
-    # Download buttons
-    def _to_excel_bytes(df):
-        buf = BytesIO()
-        with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
-            df.to_excel(writer, index=False)
-        buf.seek(0)
-        return buf
-
-    excel_bytes = _to_excel_bytes(df_filtered)
-    st.download_button(
-        "⬇️ Scarica Excel filtrato",
-        data=excel_bytes,
-        file_name="import_filtered.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-
-    st.download_button(
-        "⬇️ Scarica HTML Gmail",
-        data=html_msg,
-        file_name="report_message.html",
-        mime="text/html",
-    )
-else:
-    st.info("Carica un file CSV per iniziare.")
-
-# --------------------------------------------------------
-# FOOTER / LINKS
-# --------------------------------------------------------
-st.markdown("---")
-st.markdown(
-    "Made with ❤️ by the Imports team  •  Source code: <https://github.com/your-org/import-report-app>  •  Free hosting via Streamlit Community Cloud"
-)
-
-# --------------------------------------------------------
-# REQUIREMENTS (to put in requirements.txt):
-#   streamlit
-#   pandas
-#   python-dateutil
-#   xlsxwriter
-# --------------------------------------------------------
+    kpi1, kpi2, kpi
