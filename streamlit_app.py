@@ -2,6 +2,7 @@ import datetime as _dt
 from datetime import timedelta
 from io import BytesIO
 import html
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -46,12 +47,10 @@ KEEP_COLS = [
 CLOSE_FMT = "%b %d, %Y, %I:%M:%S %p"
 
 # --------------------------------------------------------
-# STYLE CONSTANTS
+# STYLE CONSTANTS — inline CSS Gmail‑safe
 # --------------------------------------------------------
 STYLE_CELL = 'style="border:1px solid #cccccc;padding:4px;text-align:left;"'
 STYLE_TABLE = 'style="border-collapse:collapse;border:1px solid #cccccc;"'
-STYLE_WRAP_START = '<div style="background:#ffffff;color:#000000;font-family:Arial, sans-serif;">'
-STYLE_WRAP_END = '</div>'
 
 # --------------------------------------------------------
 # UTILITY FUNCTIONS
@@ -116,7 +115,6 @@ def build_messages(df: pd.DataFrame):
             f'<li><a href="{html.escape(u)}">{html.escape(n)}</a></li>' for n, u in fac_df.values
         ) + "</ul>"
 
-    # --- Plain text (Markdown) ---
     plain = f"""\
 Ciao Luisa,
 Di seguito gli import di questa settimana. Sono stati fatti {tot_total} import così divisi:
@@ -142,8 +140,7 @@ Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DP
 {links_md}
 """
 
-    # --- Gmail‑friendly HTML ---
-    html_msg_inner = f"""\
+    html_msg = f"""\
 <p>Ciao Luisa,</p>
 <p>di seguito gli import di questa settimana.<br/>
 Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
@@ -166,8 +163,6 @@ Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 <p>Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DPP) interessate:</p>
 {links_html}
 """
-
-    html_msg = f"{STYLE_WRAP_START}{html_msg_inner}{STYLE_WRAP_END}"
     return plain, html_msg
 
 # --------------------------------------------------------
@@ -175,13 +170,6 @@ Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 # --------------------------------------------------------
 
 st.set_page_config(page_title="Weekly Import Report", page_icon="📊", layout="centered")
-
-# Force light background even in dark mode
-st.markdown(
-    """<style>html, body {background-color:#ffffff !important; color:#000000 !important;} </style>""",
-    unsafe_allow_html=True,
-)
-
 st.title("📊 Weekly Import Report Generator")
 
 with st.expander("ℹ️ Istruzioni", expanded=False):
@@ -203,4 +191,52 @@ if uploaded_file:
     try:
         raw_df = pd.read_csv(uploaded_file)
     except UnicodeDecodeError:
-        raw_df = pd.read_csv
+        raw_df = pd.read_csv(uploaded_file, encoding="latin1")
+
+    # --- Filter & compute ---
+    df_filtered = load_and_filter(raw_df, reference_date=ref_date)
+
+    tot_imports = len(df_filtered)
+    bl_counts = df_filtered["BL_CAT"].value_counts()
+    facility = int(bl_counts.get("Facility", 0))
+    individual = int(bl_counts.get("Individual", 0))
+
+        # --- KPI cards ---
+    kpi1, kpi2, kpi3 = st.columns(3)
+    kpi1.metric("Totale", f"{tot_imports}")
+    kpi2.metric("Facility", f"{facility}")
+    kpi3.metric("Individual", f"{individual}")
+
+    # --- Show dataframe ---
+    st.subheader("📑 Risultati filtrati")
+    st.dataframe(df_filtered, hide_index=True)
+
+    # --- Build messages ---
+    plain_msg, html_msg = build_messages(df_filtered)
+
+    with st.expander("Messaggio HTML per Gmail"):
+        components.html(html_msg, height=400, scrolling=True)
+
+    # --- Download buttons ---
+    def _to_excel_bytes(df):
+        buf = BytesIO()
+        with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False)
+        buf.seek(0)
+        return buf
+
+    st.download_button(
+        "⬇️ Scarica Excel filtrato",
+        data=_to_excel_bytes(df_filtered),
+        file_name="import_filtered.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    st.download_button(
+        "⬇️ Scarica HTML Gmail",
+        data=html_msg,
+        file_name="report_message.html",
+        mime="text/html",
+    )
+else:
+    st.info("Carica un file CSV per iniziare.")
