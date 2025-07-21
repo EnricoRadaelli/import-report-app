@@ -212,21 +212,9 @@ col1, col2 = st.columns(2)
 with col1:
     ref_date = st.date_input("Data di riferimento", value=_dt.date.today(), format="DD/MM/YYYY")
 with col2:
-    pass  # spacer per opzioni future
+    pass  # placeholder for future options
 
 if uploaded_file:
-    # Read & process
+    # --- Processing
     try:
-        raw_df = pd.read_csv(uploaded_file)
-    except UnicodeDecodeError:
-        raw_df = pd.read_csv(uploaded_file, encoding="latin1")
-
-    df_filtered = load_and_filter(raw_df, reference_date=ref_date)
-
-    tot_imports = len(df_filtered)
-    bl_counts = df_filtered["BL_CAT"].value_counts()
-    facility = int(bl_counts.get("Facility", 0))
-    individual = int(bl_counts.get("Individual", 0))
-
-    # KPI Cards
-    kpi1, kpi2, kpi
+        raw_df = pd.read
