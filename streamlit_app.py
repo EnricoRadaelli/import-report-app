@@ -1,8 +1,8 @@
 import datetime as _dt
-from datetime import datetime, timedelta
+from datetime import timedelta
 from io import BytesIO
-from pathlib import Path
 import html
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 from dateutil.relativedelta import relativedelta, MO
 
 # --------------------------------------------------------
-# CONFIG — tweak only if your business rules change
+# CONFIG — tweak only if business rules change
 # --------------------------------------------------------
 ALLOWED_IMPORTERS = {
     "Andrea Sergi",
@@ -44,18 +44,19 @@ KEEP_COLS = [
     "Close Date",
 ]
 
-CLOSE_FMT = "%b %d, %Y, %I:%M:%S %p"  # e.g. "Jul 14, 2025, 04:20:01 PM"
+CLOSE_FMT = "%b %d, %Y, %I:%M:%S %p"
 
 # --------------------------------------------------------
-# UTILITY FUNCTIONS (largely unchanged from your script)
+# STYLE CONSTANTS — inline CSS Gmail‑safe
 # --------------------------------------------------------
-
 STYLE_CELL = 'style="border:1px solid #cccccc;padding:4px;text-align:left;"'
 STYLE_TABLE = 'style="border-collapse:collapse;border:1px solid #cccccc;"'
 
+# --------------------------------------------------------
+# UTILITY FUNCTIONS
+# --------------------------------------------------------
 
 def previous_week_window(reference_date=None):
-    """Return Monday–Sunday dates of the *previous* week w.r.t reference_date."""
     if reference_date is None:
         reference_date = _dt.date.today()
     this_week_monday = reference_date + relativedelta(weekday=MO(-1))
@@ -69,10 +70,8 @@ def business_line_cat(raw_bl: str) -> str:
 
 
 def load_and_filter(df: pd.DataFrame, reference_date=None):
-    """Apply column subset + filters to the dataframe."""
     df = df[KEEP_COLS].copy()
 
-    # Normalize & parse date
     df["Close Date"] = (
         df["Close Date"].astype(str).str.replace("\u202f", " ", regex=False)
         .pipe(pd.to_datetime, format=CLOSE_FMT, errors="coerce")
@@ -91,7 +90,6 @@ def load_and_filter(df: pd.DataFrame, reference_date=None):
 
 
 def build_messages(df: pd.DataFrame):
-    """Return (plain_markdown, html_email) strings ready to copy."""
     bl_counts = df["BL_CAT"].value_counts()
     facility = int(bl_counts.get("Facility", 0))
     individual = int(bl_counts.get("Individual", 0))
@@ -119,7 +117,7 @@ def build_messages(df: pd.DataFrame):
 
     plain = f"""\
 Ciao Luisa,
-di seguito gli import di questa settimana. Sono stati fatti {tot_total} import così divisi:
+Di seguito gli import di questa settimana. Sono stati fatti {tot_total} import così divisi:
 
 Business Line\tVolumi
 Facility\t{facility}
@@ -142,59 +140,35 @@ Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DP
 {links_md}
 """
 
-    # --- Gmail‑friendly HTML: inline CSS ---
     html_msg = f"""\
 <p>Ciao Luisa,</p>
-
 <p>di seguito gli import di questa settimana.<br/>
 Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
-
 <table {STYLE_TABLE}>
-  <tr>
-    <th {STYLE_CELL}>Business Line</th>
-    <th {STYLE_CELL}>Volumi</th>
-  </tr>
-  <tr>
-    <td {STYLE_CELL}>Facility</td><td {STYLE_CELL}>{facility}</td>
-  </tr>
-  <tr>
-    <td {STYLE_CELL}>Individual</td><td {STYLE_CELL}>{individual}</td>
-  </tr>
-  <tr>
-    <td {STYLE_CELL}><strong>Totale complessivo</strong></td>
-    <td {STYLE_CELL}><strong>{tot_total}</strong></td>
-  </tr>
+  <tr><th {STYLE_CELL}>Business Line</th><th {STYLE_CELL}>Volumi</th></tr>
+  <tr><td {STYLE_CELL}>Facility</td><td {STYLE_CELL}>{facility}</td></tr>
+  <tr><td {STYLE_CELL}>Individual</td><td {STYLE_CELL}>{individual}</td></tr>
+  <tr><td {STYLE_CELL}><strong>Totale complessivo</strong></td><td {STYLE_CELL}><strong>{tot_total}</strong></td></tr>
 </table>
-
 <p><em>Il dato relativo alle Facility comprende anche le Cliniche GP, GIPO e DPP.</em></p>
-
 <p>Di seguito le lavorazioni suddivise per importer:</p>
-
 <table {STYLE_TABLE}>
-  <tr>
-    <th {STYLE_CELL}>Importer</th>
-    <th {STYLE_CELL}>Volumi</th>
-  </tr>
+  <tr><th {STYLE_CELL}>Importer</th><th {STYLE_CELL}>Volumi</th></tr>
   <tr><td {STYLE_CELL}>Alessia</td><td {STYLE_CELL}>{imp_counts['Alessia']}</td></tr>
   <tr><td {STYLE_CELL}>Andrea</td><td {STYLE_CELL}>{imp_counts['Andrea']}</td></tr>
   <tr><td {STYLE_CELL}>Enrico</td><td {STYLE_CELL}>{imp_counts['Enrico']}</td></tr>
   <tr><td {STYLE_CELL}>Pedro</td><td {STYLE_CELL}>{imp_counts['Pedro']}</td></tr>
-  <tr>
-    <td {STYLE_CELL}><strong>Totale complessivo</strong></td>
-    <td {STYLE_CELL}><strong>{tot_total}</strong></td>
-  </tr>
+  <tr><td {STYLE_CELL}><strong>Totale complessivo</strong></td><td {STYLE_CELL}><strong>{tot_total}</strong></td></tr>
 </table>
-
 <p>Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DPP) interessate:</p>
-
 {links_html}
 """
     return plain, html_msg
 
-
 # --------------------------------------------------------
 # STREAMLIT UI
 # --------------------------------------------------------
+
 st.set_page_config(page_title="Weekly Import Report", page_icon="📊", layout="centered")
 st.title("📊 Weekly Import Report Generator")
 
@@ -208,13 +182,17 @@ with st.expander("ℹ️ Istruzioni", expanded=False):
 
 uploaded_file = st.file_uploader("Carica il CSV export dal CRM", type="csv")
 
-col1, col2 = st.columns(2)
+col1, _ = st.columns(2)
 with col1:
     ref_date = st.date_input("Data di riferimento", value=_dt.date.today(), format="DD/MM/YYYY")
-with col2:
-    pass  # placeholder for future options
 
 if uploaded_file:
-    # --- Processing
     try:
-        raw_df = pd.read
+        raw_df = pd.read_csv(uploaded_file)
+    except UnicodeDecodeError:
+        raw_df = pd.read_csv(uploaded_file, encoding="latin1")
+
+    df_filtered = load_and_filter(raw_df, reference_date=ref_date)
+
+    tot_imports = len(df_filtered)
+    bl_counts = df_filtered["BL_CAT"].value
