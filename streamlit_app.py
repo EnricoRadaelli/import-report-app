@@ -215,7 +215,6 @@ if uploaded_file:
     plain_msg, html_msg = build_messages(df_filtered)
 
     with st.expander("Messaggio HTML per Gmail"):
-        st.code(html_msg, language="html")
         components.html(html_msg, height=400, scrolling=True)
 
     # --- Download buttons ---
