@@ -187,12 +187,57 @@ with col1:
     ref_date = st.date_input("Data di riferimento", value=_dt.date.today(), format="DD/MM/YYYY")
 
 if uploaded_file:
+    # --- Read CSV ---
     try:
         raw_df = pd.read_csv(uploaded_file)
     except UnicodeDecodeError:
         raw_df = pd.read_csv(uploaded_file, encoding="latin1")
 
+    # --- Filter & compute ---
     df_filtered = load_and_filter(raw_df, reference_date=ref_date)
 
     tot_imports = len(df_filtered)
-    bl_counts = df_filtered["BL_CAT"].value
+    bl_counts = df_filtered["BL_CAT"].value_counts()
+    facility = int(bl_counts.get("Facility", 0))
+    individual = int(bl_counts.get("Individual", 0))
+
+        # --- KPI cards ---
+    kpi1, kpi2, kpi3 = st.columns(3)
+    kpi1.metric("Totale", f"{tot_imports}")
+    kpi2.metric("Facility", f"{facility}")
+    kpi3.metric("Individual", f"{individual}")
+
+    # --- Show dataframe ---
+    st.subheader("📑 Risultati filtrati")
+    st.dataframe(df_filtered, hide_index=True)
+
+    # --- Build messages ---
+    plain_msg, html_msg = build_messages(df_filtered)
+
+    with st.expander("Messaggio HTML per Gmail"):
+        st.code(html_msg, language="html")
+        components.html(html_msg, height=400, scrolling=True)
+
+    # --- Download buttons ---
+    def _to_excel_bytes(df):
+        buf = BytesIO()
+        with pd.ExcelWriter(buf, engine="xlsxwriter") as writer:
+            df.to_excel(writer, index=False)
+        buf.seek(0)
+        return buf
+
+    st.download_button(
+        "⬇️ Scarica Excel filtrato",
+        data=_to_excel_bytes(df_filtered),
+        file_name="import_filtered.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    st.download_button(
+        "⬇️ Scarica HTML Gmail",
+        data=html_msg,
+        file_name="report_message.html",
+        mime="text/html",
+    )
+else:
+    st.info("Carica un file CSV per iniziare.")
