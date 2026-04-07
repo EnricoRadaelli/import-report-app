@@ -116,7 +116,7 @@ def build_messages(df: pd.DataFrame):
         ) + "</ul>"
 
     plain = f"""\
-Ciao Luisa,
+Ciao Alessia,
 Di seguito gli import di questa settimana. Sono stati fatti {tot_total} import così divisi:
 
 Business Line\tVolumi
