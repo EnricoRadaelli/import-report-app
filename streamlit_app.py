@@ -56,13 +56,13 @@ STYLE_TABLE = 'style="border-collapse:collapse;border:1px solid #cccccc;"'
 # UTILITY FUNCTIONS
 # --------------------------------------------------------
 
-def previous_week_window(reference_date=None):
+def previous_month_window(reference_date=None):
     if reference_date is None:
         reference_date = _dt.date.today()
-    this_week_monday = reference_date + relativedelta(weekday=MO(-1))
-    prev_monday = this_week_monday - timedelta(weeks=1)
-    prev_sunday = prev_monday + timedelta(days=6)
-    return prev_monday, prev_sunday
+    first_of_current = reference_date.replace(day=1)
+    first_of_prev = (first_of_current - timedelta(days=1)).replace(day=1)
+    last_of_prev = first_of_current - timedelta(days=1)
+    return first_of_prev, last_of_prev
 
 
 def business_line_cat(raw_bl: str) -> str:
@@ -78,7 +78,7 @@ def load_and_filter(df: pd.DataFrame, reference_date=None):
         .dt.date
     )
 
-    start, end = previous_week_window(reference_date)
+    start, end = previous_month_window(reference_date)
     mask_period = df["Close Date"].between(start, end, inclusive="both")
     mask_type = df["Import Type"].str.startswith(("Complete", "No Importation"), na=False)
     mask_imp = df["Importer"].isin(ALLOWED_IMPORTERS)
@@ -117,7 +117,7 @@ def build_messages(df: pd.DataFrame):
 
     plain = f"""\
 Ciao Alessia,
-Di seguito gli import di questa settimana. Sono stati fatti {tot_total} import così divisi:
+Di seguito gli import dello scorso mese. Sono stati fatti {tot_total} import così divisi:
 
 Business Line\tVolumi
 Facility\t{facility}
@@ -141,8 +141,8 @@ Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DP
 """
 
     html_msg = f"""\
-<p>Ciao Luisa,</p>
-<p>di seguito gli import di questa settimana.<br/>
+<p>Ciao Alessia,</p>
+<p>di seguito gli import dello scorso mese.<br/>
 Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 <table {STYLE_TABLE}>
   <tr><th {STYLE_CELL}>Business Line</th><th {STYLE_CELL}>Volumi</th></tr>
@@ -170,13 +170,13 @@ Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 # --------------------------------------------------------
 
 st.set_page_config(page_title="Weekly Import Report", page_icon="📊", layout="centered")
-st.title("📊 Weekly Import Report Generator")
+st.title("📊 Monthly Import Report Generator")
 
 with st.expander("ℹ️ Istruzioni", expanded=False):
     st.markdown(
         "1. Scarica il CSV dal CRM come fai di solito.\n"
         "2. Caricalo qui sotto.\n"
-        "3. Facoltativo: cambia la *data di riferimento* se vuoi calcolare su un'altra settimana.\n"
+        "3. Facoltativo: cambia la *data di riferimento* se vuoi calcolare su un altro mese.\n"
         "4. Scarica l'Excel filtrato o copia il messaggio HTML pronto per Gmail."
     )
 
