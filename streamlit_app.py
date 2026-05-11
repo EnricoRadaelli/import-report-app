@@ -88,6 +88,21 @@ def load_and_filter(df: pd.DataFrame, reference_date=None):
     df["ImporterShort"] = df["Importer"].map(IMPORTER_SHORT)
     return df
 
+CLINIC_STRIP = [
+    "Additional Importation -",
+    "- Importation GP Gruppi",
+    "- SaaS Tool",
+    "- Importation CA",
+    "- SF",
+    "- Importation GP",
+    "- Importation",
+    "New Import -",
+]
+
+def clean_clinic_name(name: str) -> str:
+    for fragment in CLINIC_STRIP:
+        name = name.replace(fragment, "")
+    return name.strip()
 
 def build_messages(df: pd.DataFrame):
     bl_counts = df["BL_CAT"].value_counts()
@@ -99,20 +114,25 @@ def build_messages(df: pd.DataFrame):
         df["ImporterShort"].value_counts().reindex(["Alessia", "Andrea", "Enrico", "Pedro"], fill_value=0)
     )
 
+    fac_df = df[df["BL_CAT"] == "Facility"][["Ticket Name", "Url"]].dropna().copy()
+    fac_df["Ticket Name"] = fac_df["Ticket Name"].apply(clean_clinic_name)
+    counts = fac_df["Ticket Name"].value_counts()
     fac_df = (
-        df[df["BL_CAT"] == "Facility"][["Ticket Name", "Url"]]
-        .dropna()
-        .drop_duplicates(subset="Url")
+        fac_df.drop_duplicates(subset="Ticket Name")
         .sort_values("Ticket Name")
+        .assign(Display=lambda x: x["Ticket Name"].map(
+            lambda n: f"{n} - x{counts[n]}" if counts[n] > 1 else n
+        ))
     )
 
     if fac_df.empty:
         links_md = "_Nessuna facility questa settimana_"
         links_html = "<em>Nessuna facility questa settimana</em>"
     else:
-        links_md = "\n".join(f"- [{n}]({u})" for n, u in fac_df.values)
+        links_md = "\n".join(f"- [{row.Display}]({row.Url})" for row in fac_df.itertuples())
         links_html = "<ul>" + "".join(
-            f'<li><a href="{html.escape(u)}">{html.escape(n)}</a></li>' for n, u in fac_df.values
+            f'<li><a href="{html.escape(row.Url)}">{html.escape(row.Display)}</a></li>'
+            for row in fac_df.itertuples()
         ) + "</ul>"
 
     plain = f"""\
