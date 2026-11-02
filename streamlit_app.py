@@ -136,7 +136,7 @@ def build_messages(df: pd.DataFrame):
         ) + "</ul>"
 
     plain = f"""\
-Ciao Alessia,
+Ciao Vito,
 Di seguito gli import dello scorso mese. Sono stati fatti {tot_total} import così divisi:
 
 Business Line\tVolumi
@@ -158,10 +158,13 @@ Totale complessivo\t{tot_total}
 Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DPP) interessate:
 
 {links_md}
+
+Grazie mille,
+Alessia
 """
 
     html_msg = f"""\
-<p>Ciao Alessia,</p>
+<p>Ciao Vito,</p>
 <p>di seguito gli import dello scorso mese.<br/>
 Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 <table {STYLE_TABLE}>
@@ -182,6 +185,8 @@ Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 </table>
 <p>Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DPP) interessate:</p>
 {links_html}
+Grazie mille,
+Alessia
 """
     return plain, html_msg
 
