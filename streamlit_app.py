@@ -159,7 +159,7 @@ Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DP
 
 {links_md}
 
-Grazie mille,\t
+Grazie mille,
 Alessia
 """
 
@@ -185,8 +185,8 @@ Sono stati fatti <strong>{tot_total}</strong> import così divisi:</p>
 </table>
 <p>Di seguito i link delle cliniche (sia CRM che GIPO che Gruppi GP che Cliniche DPP) interessate:</p>
 {links_html}
-Grazie mille,\t
-Alessia
+<p>Grazie mille,</p>
+<p>Alessia</p>
 """
     return plain, html_msg
 
